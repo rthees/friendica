@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Util;
+namespace Friendica\Test\src\Util;
 
 use Friendica\Test\MockedTest;
 use Friendica\Util\Profiler;
@@ -18,7 +18,7 @@ class ProfilerTest extends MockedTest
 	{
 		parent::setUp();
 
-		$this->logger = \Mockery::mock('Psr\Log\LoggerInterface');
+		$this->logger = \Mockery::mock(LoggerInterface::class);
 	}
 
 	/**
@@ -177,5 +177,41 @@ class ProfilerTest extends MockedTest
 		}
 
 		$profiler->saveLog($this->logger, 'test');
+
+		$output = $profiler->getRendertimeString();
+
+		foreach ($data as $perf => $items) {
+			foreach ($items['functions'] as $function) {
+				// assert that the output contains the functions
+				$this->assertRegExp('/' . $function . ': \d+/', $output);
+			}
+		}
+	}
+
+	/**
+	 * Test different enable and disable states of the profiler
+	 */
+	public function testEnableDisable()
+	{
+		$profiler = new Profiler(true, false);
+
+		$this->assertFalse($profiler->isRendertime());
+		$this->assertEmpty($profiler->getRendertimeString());
+
+		$profiler->saveTimestamp(time(), 'network', 'test1');
+
+		$profiler->update(false, false);
+
+		$this->assertFalse($profiler->isRendertime());
+		$this->assertEmpty($profiler->getRendertimeString());
+
+		$profiler->update(true, true);
+
+		$profiler->saveTimestamp(time(), 'database', 'test2');
+
+		$this->assertTrue($profiler->isRendertime());
+		$output = $profiler->getRendertimeString();
+		$this->assertRegExp('/test1: \d+/', $output);
+		$this->assertRegExp('/test2: \d+/', $output);
 	}
 }

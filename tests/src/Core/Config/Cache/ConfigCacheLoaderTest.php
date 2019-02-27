@@ -1,6 +1,6 @@
 <?php
 
-namespace Friendica\Test\Core\Config\Cache;
+namespace Friendica\Test\src\Core\Config\Cache;
 
 use Friendica\Core\Config\Cache\ConfigCache;
 use Friendica\Core\Config\Cache\ConfigCacheLoader;
@@ -17,19 +17,6 @@ class ConfigCacheLoaderTest extends MockedTest
 		parent::setUp();
 
 		$this->setUpVfsDir();
-	}
-
-	/**
-	 * Test the loadConfigFiles() method with default values
-	 */
-	public function testLoadConfigFiles()
-	{
-		$configCacheLoader = new ConfigCacheLoader($this->root->url());
-		$configCache = new ConfigCache();
-
-		$configCacheLoader->loadConfigFiles($configCache);
-
-		$this->assertEquals($this->root->url(), $configCache->get('system', 'basepath'));
 	}
 
 	/**

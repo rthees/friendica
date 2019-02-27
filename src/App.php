@@ -197,7 +197,6 @@ class App
 		$this->footerScripts[] = trim($url, '/');
 	}
 
-	public $process_id;
 	public $queue;
 	private $scheme;
 	private $hostname;
@@ -205,6 +204,7 @@ class App
 	/**
 	 * @brief App constructor.
 	 *
+	 * @param string           $basePath   The basedir of the app
 	 * @param Configuration    $config    The Configuration
 	 * @param LoggerInterface  $logger    The current app logger
 	 * @param Profiler         $profiler  The profiler of this application
@@ -212,14 +212,15 @@ class App
 	 *
 	 * @throws Exception if the Basepath is not usable
 	 */
-	public function __construct(Configuration $config, LoggerInterface $logger, Profiler $profiler, $isBackend = true)
+	public function __construct($basePath, Configuration $config, LoggerInterface $logger, Profiler $profiler, $isBackend = true)
 	{
 		BaseObject::setApp($this);
 
 		$this->logger   = $logger;
 		$this->config   = $config;
 		$this->profiler = $profiler;
-		$this->basePath = $this->config->get('system', 'basepath');
+		$cfgBasePath = $this->config->get('system', 'basepath');
+		$this->basePath = !empty($cfgBasePath) ? $cfgBasePath : $basePath;
 
 		if (!Core\System::isDirectoryUsable($this->basePath, false)) {
 			throw new Exception('Basepath \'' . $this->basePath . '\' isn\'t usable.');
@@ -358,17 +359,20 @@ class App
 		$this->getMode()->determine($this->basePath);
 
 		if ($this->getMode()->has(App\Mode::DBAVAILABLE)) {
-			Core\Hook::loadHooks();
 			$loader = new ConfigCacheLoader($this->basePath);
-			Core\Hook::callAll('load_config', $loader);
 			$this->config->getCache()->load($loader->loadCoreConfig('addon'), true);
+
+			$this->profiler->update(
+				$this->config->get('system', 'profiler', false),
+				$this->config->get('rendertime', 'callstack', false));
+
+			Core\Hook::loadHooks();
+			Core\Hook::callAll('load_config', $loader);
 		}
 
 		$this->loadDefaultTimezone();
 
 		Core\L10n::init();
-
-		$this->process_id = Core\System::processID('log');
 	}
 
 	/**
@@ -397,16 +401,25 @@ class App
 	 */
 	private function determineURLPath()
 	{
+		/*
+		 * The automatic path detection in this function is currently deactivated,
+		 * see issue https://github.com/friendica/friendica/issues/6679
+		 *
+		 * The problem is that the function seems to be confused with some url.
+		 * These then confuses the detection which changes the url path.
+		 */
+
 		/* Relative script path to the web server root
 		 * Not all of those $_SERVER properties can be present, so we do by inverse priority order
 		 */
+/*
 		$relative_script_path = '';
 		$relative_script_path = defaults($_SERVER, 'REDIRECT_URL'       , $relative_script_path);
 		$relative_script_path = defaults($_SERVER, 'REDIRECT_URI'       , $relative_script_path);
 		$relative_script_path = defaults($_SERVER, 'REDIRECT_SCRIPT_URL', $relative_script_path);
 		$relative_script_path = defaults($_SERVER, 'SCRIPT_URL'         , $relative_script_path);
 		$relative_script_path = defaults($_SERVER, 'REQUEST_URI'        , $relative_script_path);
-
+*/
 		$this->urlPath = $this->config->get('system', 'urlpath');
 
 		/* $relative_script_path gives /relative/path/to/friendica/module/parameter
@@ -414,6 +427,7 @@ class App
 		 *
 		 * To get /relative/path/to/friendica we perform dirname() for as many levels as there are slashes in the QUERY_STRING
 		 */
+/*
 		if (!empty($relative_script_path)) {
 			// Module
 			if (!empty($_SERVER['QUERY_STRING'])) {
@@ -427,6 +441,7 @@ class App
 				$this->urlPath = $path;
 			}
 		}
+*/
 	}
 
 	public function getScheme()

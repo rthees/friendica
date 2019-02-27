@@ -40,6 +40,10 @@ class DBA
 	 * @var Profiler
 	 */
 	private static $profiler;
+	/**
+	 * @var string
+	 */
+	private static $basePath;
 	private static $server_info = '';
 	private static $connection;
 	private static $driver;
@@ -55,13 +59,14 @@ class DBA
 	private static $db_name = '';
 	private static $db_charset = '';
 
-	public static function connect(IConfigCache $configCache, Profiler $profiler, $serveraddr, $user, $pass, $db, $charset = null)
+	public static function connect($basePath, IConfigCache $configCache, Profiler $profiler, $serveraddr, $user, $pass, $db, $charset = null)
 	{
 		if (!is_null(self::$connection) && self::connected()) {
 			return true;
 		}
 
 		// We are storing these values for being able to perform a reconnect
+		self::$basePath = $basePath;
 		self::$configCache = $configCache;
 		self::$profiler = $profiler;
 		self::$db_serveraddr = $serveraddr;
@@ -164,7 +169,7 @@ class DBA
 	public static function reconnect() {
 		self::disconnect();
 
-		$ret = self::connect(self::$configCache, self::$profiler, self::$db_serveraddr, self::$db_user, self::$db_pass, self::$db_name, self::$db_charset);
+		$ret = self::connect(self::$basePath, self::$configCache, self::$profiler, self::$db_serveraddr, self::$db_user, self::$db_pass, self::$db_name, self::$db_charset);
 		return $ret;
 	}
 
@@ -420,7 +425,7 @@ class DBA
 
 		if ((substr_count($sql, '?') != count($args)) && (count($args) > 0)) {
 			// Question: Should we continue or stop the query here?
-			Logger::log('Parameter mismatch. Query "'.$sql.'" - Parameters '.print_r($args, true), Logger::DEBUG);
+			Logger::warning('Query parameters mismatch.', ['query' => $sql, 'args' => $args, 'callstack' => System::callstack()]);
 		}
 
 		$sql = self::cleanQuery($sql);
@@ -1034,7 +1039,7 @@ class DBA
 	 * This process must only be started once, since the value is cached.
 	 */
 	private static function buildRelationData() {
-		$definition = DBStructure::definition(self::$configCache->get('system', 'basepath'));
+		$definition = DBStructure::definition(self::$basePath);
 
 		foreach ($definition AS $table => $structure) {
 			foreach ($structure['fields'] AS $field => $field_struct) {

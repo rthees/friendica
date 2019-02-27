@@ -7,6 +7,7 @@ use Friendica\Core\Logger;
 use Friendica\Network\HTTPException\InternalServerErrorException;
 use Friendica\Util\Logger\FriendicaDevelopHandler;
 use Friendica\Util\Logger\FriendicaIntrospectionProcessor;
+use Friendica\Util\Logger\WorkerLogger;
 use Friendica\Util\Profiler;
 use Monolog;
 use Psr\Log\LoggerInterface;
@@ -19,6 +20,16 @@ use Psr\Log\LogLevel;
  */
 class LoggerFactory
 {
+	/**
+	 * A list of classes, which shouldn't get logged
+	 * @var array
+	 */
+	private static $ignoreClassList = [
+		Logger::class,
+		Profiler::class,
+		WorkerLogger::class
+	];
+
 	/**
 	 * Creates a new PSR-3 compliant logger instances
 	 *
@@ -33,7 +44,7 @@ class LoggerFactory
 		$logger->pushProcessor(new Monolog\Processor\PsrLogMessageProcessor());
 		$logger->pushProcessor(new Monolog\Processor\ProcessIdProcessor());
 		$logger->pushProcessor(new Monolog\Processor\UidProcessor());
-		$logger->pushProcessor(new FriendicaIntrospectionProcessor(LogLevel::DEBUG, [Logger::class, Profiler::class]));
+		$logger->pushProcessor(new FriendicaIntrospectionProcessor(LogLevel::DEBUG, self::$ignoreClassList));
 
 		$debugging = $config->get('system', 'debugging');
 		$stream    = $config->get('system', 'logfile');
@@ -78,7 +89,7 @@ class LoggerFactory
 		$logger->pushProcessor(new Monolog\Processor\PsrLogMessageProcessor());
 		$logger->pushProcessor(new Monolog\Processor\ProcessIdProcessor());
 		$logger->pushProcessor(new Monolog\Processor\UidProcessor());
-		$logger->pushProcessor(new FriendicaIntrospectionProcessor(LogLevel::DEBUG, ['Friendica\\Core\\Logger']));
+		$logger->pushProcessor(new FriendicaIntrospectionProcessor(LogLevel::DEBUG, self::$ignoreClassList));
 
 		$logger->pushHandler(new FriendicaDevelopHandler($developerIp));
 
@@ -145,6 +156,7 @@ class LoggerFactory
 			if (!is_int($loglevel)) {
 				$loglevel = LogLevel::NOTICE;
 			}
+
 			$fileHandler = new Monolog\Handler\StreamHandler($stream, $loglevel);
 
 			$formatter = new Monolog\Formatter\LineFormatter("%datetime% %channel% [%level_name%]: %message% %context% %extra%\n");
